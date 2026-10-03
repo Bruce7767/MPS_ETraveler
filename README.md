@@ -20,10 +20,16 @@ Offline Windows desktop application for maintaining device traveler configuratio
 - Windows PowerShell 5.1 or later
 - Microsoft Excel desktop
 
-## Project layout
+## Source layout
 
-- `src/E-Traveler.ps1` — application source
-- `dist/E-Traveler-PreRelease-x64.exe` — pre-release executable
+- `src/E-Traveler.ps1` — application entry point
+- `src/Modules/AppShell.ps1` — WPF shell and main layout
+- `src/Modules/Data.ps1` — local state and data model
+- `src/Modules/Traveler.ps1` — traveler rules and Excel compiler
+- `src/Modules/TemplateSetup.ps1` — template-folder and setup dialogs
+- `src/Modules/PageEditor.ps1` — page assignment and ordering
+- `src/Modules/DeviceDialogs.ps1` — Device/Die and Device Flow dialogs
+- `src/Modules/Main.ps1` — application event wiring
 
 ## Local data
 
