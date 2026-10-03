@@ -1,9 +1,12 @@
 function Open-XlsReadOnly {
-    param([string]$Path)
+    param(
+        [string]$Path,
+        [string]$ExcelExecutable = 'excel.exe'
+    )
 
     try {
         Start-Process `
-            -FilePath 'excel.exe' `
+            -FilePath $ExcelExecutable `
             -ArgumentList @('/r', ('"' + $Path + '"')) `
             -ErrorAction Stop
     }
@@ -80,6 +83,7 @@ function Compile-Traveler {
     )
 
     $excel = $null
+    $excelExecutable = 'excel.exe'
     $workbooks = $null
     $destinationWorkbook = $null
     $destinationSheets = $null
@@ -90,6 +94,15 @@ function Compile-Traveler {
         $excel.DisplayAlerts = $false
         $excel.ScreenUpdating = $false
         $excel.EnableEvents = $false
+
+        try {
+            $candidateExcelPath = Join-Path ([string]$excel.Path) 'EXCEL.EXE'
+            if (Test-Path -LiteralPath $candidateExcelPath -PathType Leaf) {
+                $excelExecutable = $candidateExcelPath
+            }
+        }
+        catch {
+        }
 
         $workbooks = $excel.Workbooks
         $destinationWorkbook = $workbooks.Add()
@@ -172,7 +185,7 @@ function Compile-Traveler {
         }
 
         if ($OpenAfter) {
-            Open-XlsReadOnly -Path $outputPath
+            Open-XlsReadOnly -Path $outputPath -ExcelExecutable $excelExecutable
             return
         }
 
