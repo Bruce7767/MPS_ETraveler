@@ -1,0 +1,11 @@
+# Runtime files
+E_Traveler_Data.json
+E_Traveler_Data.dat
+Output/
+*.log
+
+# Temporary build files
+_build/
+*.obj
+*.lib
+*.pdb
