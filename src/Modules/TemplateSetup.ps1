@@ -1,4 +1,6 @@
 function Show-TemplateFolder {
+    param([System.Windows.Window]$Owner = $Window)
+
     if (-not $CurrentTraveler) {
         return
     }
@@ -30,7 +32,7 @@ function Show-TemplateFolder {
 '@
 
     $dialog = Load-Xaml $folderXaml
-    $dialog.Owner = $Window
+    $dialog.Owner = $Owner
     $dialog.FindName('Head').Text = "$($registry.Workflow)  ·  $($registry.Site)  ·  $($registry.Tester)  ·  $($registry.Handler)"
 
     $pathBox = $dialog.FindName('Path')
@@ -109,6 +111,7 @@ function Show-EditSetup {
       <StackPanel Margin="0,0,12,12"><TextBlock Text="Golden Sample"/><ComboBox Name="GS" Height="38"/></StackPanel>
     </UniformGrid>
     <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,18,0,0">
+      <Button Name="Folder" Content="Template Folder..." MinWidth="140" Padding="18,9" Margin="0,0,8,0"/>
       <Button Name="Cancel" Content="Cancel" MinWidth="104" Padding="18,9" Margin="0,0,8,0"/>
       <Button Name="Save" Content="Save" MinWidth="104" Padding="22,9" Background="#0F766E" Foreground="White"/>
     </StackPanel>
@@ -151,6 +154,10 @@ function Show-EditSetup {
     $handlerBox.SelectedItem = $traveler.Handler
     $bakingBox.SelectedItem = if ($traveler.BakingRequired) { 'Required' } else { 'Not Required' }
     $goldenSampleBox.SelectedItem = if ($traveler.GsRequired) { 'Required' } else { 'Not Required' }
+
+    $dialog.FindName('Folder').Add_Click({
+        Show-TemplateFolder -Owner $dialog
+    })
 
     $dialog.FindName('Cancel').Add_Click({
         $dialog.Close()
