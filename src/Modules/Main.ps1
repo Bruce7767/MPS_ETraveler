@@ -58,7 +58,7 @@ $CompileBtn.Add_Click({
 })
 
 $OpenFolderBtn.Add_Click({
-    Show-TemplateFolder
+    Open-CurrentTemplateFolder
 })
 
 $EditSetupBtn.Add_Click({
