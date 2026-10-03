@@ -2,6 +2,9 @@ function Show-EditPages {
     if (-not (Require-Developer)) {
         return
     }
+    if (-not $CurrentTraveler) {
+        return
+    }
 
     $traveler = $CurrentTraveler
     $registry = Get-Registry -Id $traveler.RegistryId
@@ -124,6 +127,38 @@ function Show-EditPages {
         }
     }
 
+    function Reorder-Slot {
+        param(
+            $FromSlot,
+            $ToSlot,
+            [bool]$MoveAfterTarget
+        )
+
+        $slots = [System.Collections.ArrayList]@($draft.Slots)
+        $sourceSlotIndex = $slots.IndexOf($FromSlot)
+        $targetSlotIndex = $slots.IndexOf($ToSlot)
+
+        if ($sourceSlotIndex -lt 0 -or $targetSlotIndex -lt 0 -or $FromSlot -eq $ToSlot) {
+            return $false
+        }
+
+        $slots.RemoveAt($sourceSlotIndex)
+        $targetSlotIndex = $slots.IndexOf($ToSlot)
+        if ($targetSlotIndex -lt 0) {
+            return $false
+        }
+
+        $insertIndex = $targetSlotIndex
+        if ($MoveAfterTarget) {
+            $insertIndex++
+        }
+
+        $insertIndex = [Math]::Min($insertIndex, $slots.Count)
+        $slots.Insert($insertIndex, $FromSlot)
+        $draft.Slots = @($slots)
+        $true
+    }
+
     function Move-SelectedPage {
         param([int]$Direction)
 
@@ -139,20 +174,11 @@ function Show-EditPages {
 
         $fromSlot = $pageState.ActivePages[$fromIndex].Slot
         $toSlot = $pageState.ActivePages[$toIndex].Slot
-        $slots = [System.Collections.ArrayList]@($draft.Slots)
-        $sourceSlotIndex = $slots.IndexOf($fromSlot)
-        $targetSlotIndex = $slots.IndexOf($toSlot)
+        $moveAfterTarget = $Direction -gt 0
 
-        if ($sourceSlotIndex -lt 0 -or $targetSlotIndex -lt 0) {
+        if (-not (Reorder-Slot -FromSlot $fromSlot -ToSlot $toSlot -MoveAfterTarget $moveAfterTarget)) {
             return
         }
-
-        $slots.RemoveAt($sourceSlotIndex)
-        if ($sourceSlotIndex -lt $targetSlotIndex) {
-            $targetSlotIndex--
-        }
-        $slots.Insert($targetSlotIndex, $fromSlot)
-        $draft.Slots = @($slots)
 
         Refresh-EditorPages
         $pageList.SelectedIndex = $toIndex
@@ -168,7 +194,30 @@ function Show-EditPages {
     })
 
     $pageList.Add_PreviewMouseLeftButtonDown({
-        $pageState.DragItem = $pageList.SelectedItem
+        param($Sender, $EventArgs)
+
+        $target = $EventArgs.OriginalSource
+        while ($target -and -not ($target -is [System.Windows.Controls.ListBoxItem])) {
+            if (-not ($target -is [System.Windows.DependencyObject])) {
+                $target = $null
+                break
+            }
+            $target = [System.Windows.Media.VisualTreeHelper]::GetParent($target)
+        }
+
+        if (-not $target) {
+            $pageState.DragItem = $null
+            return
+        }
+
+        $item = $pageList.ItemContainerGenerator.ItemFromContainer($target)
+        if ($item -eq [System.Windows.DependencyProperty]::UnsetValue) {
+            $pageState.DragItem = $null
+            return
+        }
+
+        $pageList.SelectedItem = $item
+        $pageState.DragItem = $item
     })
 
     $pageList.Add_PreviewMouseMove({
@@ -196,45 +245,44 @@ function Show-EditPages {
     $pageList.Add_Drop({
         param($Sender, $EventArgs)
 
-        if (-not $pageState.DragItem) {
-            return
+        try {
+            if (-not $pageState.DragItem) {
+                return
+            }
+
+            $target = $EventArgs.OriginalSource
+            while ($target -and -not ($target -is [System.Windows.Controls.ListBoxItem])) {
+                if (-not ($target -is [System.Windows.DependencyObject])) {
+                    $target = $null
+                    break
+                }
+                $target = [System.Windows.Media.VisualTreeHelper]::GetParent($target)
+            }
+
+            if (-not $target) {
+                return
+            }
+
+            $toIndex = $pageList.ItemContainerGenerator.IndexFromContainer($target)
+            $fromIndex = $pageList.Items.IndexOf($pageState.DragItem)
+            if ($fromIndex -lt 0 -or $toIndex -lt 0 -or $fromIndex -eq $toIndex) {
+                return
+            }
+
+            $fromSlot = $pageState.ActivePages[$fromIndex].Slot
+            $toSlot = $pageState.ActivePages[$toIndex].Slot
+            $moveAfterTarget = $fromIndex -lt $toIndex
+
+            if (-not (Reorder-Slot -FromSlot $fromSlot -ToSlot $toSlot -MoveAfterTarget $moveAfterTarget)) {
+                return
+            }
+
+            Refresh-EditorPages
+            $pageList.SelectedIndex = $toIndex
         }
-
-        $target = $EventArgs.OriginalSource
-        while ($target -and -not ($target -is [System.Windows.Controls.ListBoxItem])) {
-            $target = [System.Windows.Media.VisualTreeHelper]::GetParent($target)
+        finally {
+            $pageState.DragItem = $null
         }
-
-        if (-not $target) {
-            return
-        }
-
-        $toIndex = $pageList.ItemContainerGenerator.IndexFromContainer($target)
-        $fromIndex = $pageList.Items.IndexOf($pageState.DragItem)
-        if ($fromIndex -lt 0 -or $toIndex -lt 0 -or $fromIndex -eq $toIndex) {
-            return
-        }
-
-        $fromSlot = $pageState.ActivePages[$fromIndex].Slot
-        $toSlot = $pageState.ActivePages[$toIndex].Slot
-        $slots = [System.Collections.ArrayList]@($draft.Slots)
-        $sourceSlotIndex = $slots.IndexOf($fromSlot)
-        $targetSlotIndex = $slots.IndexOf($toSlot)
-
-        if ($sourceSlotIndex -lt 0 -or $targetSlotIndex -lt 0) {
-            return
-        }
-
-        $slots.RemoveAt($sourceSlotIndex)
-        if ($sourceSlotIndex -lt $targetSlotIndex) {
-            $targetSlotIndex--
-        }
-        $slots.Insert($targetSlotIndex, $fromSlot)
-        $draft.Slots = @($slots)
-
-        Refresh-EditorPages
-        $pageList.SelectedIndex = $toIndex
-        $pageState.DragItem = $null
     })
 
     $dialog.FindName('Replace').Add_Click({
@@ -266,7 +314,7 @@ function Show-EditPages {
     })
 
     $dialog.FindName('Location').Add_Click({
-        if ($pathBox.Text -and (Test-Path -LiteralPath $pathBox.Text)) {
+        if ($pathBox.Text -and (Test-Path -LiteralPath $pathBox.Text -PathType Leaf)) {
             Start-Process explorer.exe -ArgumentList @('/select,', ('"' + $pathBox.Text + '"'))
             return
         }
