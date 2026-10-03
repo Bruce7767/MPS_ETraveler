@@ -1,11 +1,17 @@
 function Show-TemplateFolder {
-    param([System.Windows.Window]$Owner = $Window)
+    param(
+        $TargetRegistry = $null,
+        [System.Windows.Window]$Owner = $Window
+    )
 
-    if (-not $CurrentTraveler) {
-        return
+    $registry = $TargetRegistry
+    if (-not $registry) {
+        if (-not $CurrentTraveler) {
+            return
+        }
+        $registry = Get-Registry -Id $CurrentTraveler.RegistryId
     }
 
-    $registry = Get-Registry -Id $CurrentTraveler.RegistryId
     if (-not $registry) {
         [System.Windows.MessageBox]::Show('Template Folder is not defined.', 'E-Traveler') | Out-Null
         return
@@ -156,7 +162,34 @@ function Show-EditSetup {
     $goldenSampleBox.SelectedItem = if ($traveler.GsRequired) { 'Required' } else { 'Not Required' }
 
     $dialog.FindName('Folder').Add_Click({
-        Show-TemplateFolder -Owner $dialog
+        $site = [string]$siteBox.SelectedItem
+        $tester = [string]$testerBox.SelectedItem
+        $handler = [string]$handlerBox.SelectedItem
+
+        if (
+            [string]::IsNullOrWhiteSpace($site) -or
+            [string]::IsNullOrWhiteSpace($tester) -or
+            [string]::IsNullOrWhiteSpace($handler)
+        ) {
+            [System.Windows.MessageBox]::Show('Select Site, Tester and Handler first.', 'E-Traveler') | Out-Null
+            return
+        }
+
+        $selectedRegistry = Find-Registry `
+            -Workflow $traveler.Workflow `
+            -Site $site `
+            -Tester $tester `
+            -Handler $handler
+
+        if (-not $selectedRegistry) {
+            [System.Windows.MessageBox]::Show(
+                'This setup does not have a Template Folder yet. Save the setup first to create it.',
+                'E-Traveler'
+            ) | Out-Null
+            return
+        }
+
+        Show-TemplateFolder -TargetRegistry $selectedRegistry -Owner $dialog
     })
 
     $dialog.FindName('Cancel').Add_Click({
