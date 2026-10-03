@@ -1,10 +1,10 @@
 # Runtime Review Notes
 
-Items identified during the current static review that are intentionally not changed in this reliability patch:
+Items identified during the current static review that still need follow-up:
 
-- Page drag-and-drop should be verified on a real WPF session. The current mouse-down handler uses the selected list item and may need hit-testing if dragging a newly clicked item behaves inconsistently.
+- Page drag-and-drop and Move Up / Move Down logic has been corrected, but should still be verified in a real WPF session.
 - Device Flow text can still be entered with inconsistent whitespace. A future cleanup should normalize flow text and reject malformed or repeated workflow entries.
 - Developer Mode still uses the prototype password in source. Replace this before production deployment.
 - `Traveler.ps1` still contains functions later overridden by `TravelerRules.ps1` and `ExcelCompiler.ps1`. Once runtime behavior is confirmed, consolidate the final implementations to remove duplicate definitions.
-- Existing template-folder path maintenance should be moved into the Developer-controlled setup screen if routine folder reassignment is required. The normal `Open Folder` action now opens the configured folder directly.
+- Registry IDs are currently generated from the registry count. This is acceptable while registries are append-only, but a future cleanup should generate the next unused ID explicitly.
 - Full WPF interaction and Microsoft Excel COM compilation still require regression testing on the target Windows Master PC.
