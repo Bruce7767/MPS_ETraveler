@@ -115,6 +115,7 @@ function Import-StateFile {
 
 function Save-State {
     $temporaryFile = Join-Path $DataDir ("state-{0}.tmp" -f [guid]::NewGuid().ToString('N'))
+    $replacementBackup = Join-Path $DataDir ("backup-{0}.tmp" -f [guid]::NewGuid().ToString('N'))
 
     try {
         $script:State |
@@ -125,23 +126,29 @@ function Save-State {
         $null = Import-StateFile -Path $temporaryFile
 
         if (Test-Path -LiteralPath $DataFile -PathType Leaf) {
-            if (Test-Path -LiteralPath $DataBackupFile -PathType Leaf) {
-                Remove-Item -LiteralPath $DataBackupFile -Force
-            }
-
+            # File.Replace swaps the state atomically and writes the previous
+            # valid state to a temporary backup. Only after that succeeds do we
+            # replace the older backup file.
             [System.IO.File]::Replace(
                 $temporaryFile,
                 $DataFile,
-                $DataBackupFile
+                $replacementBackup
             )
+
+            Move-Item `
+                -LiteralPath $replacementBackup `
+                -Destination $DataBackupFile `
+                -Force
         }
         else {
             [System.IO.File]::Move($temporaryFile, $DataFile)
         }
     }
     finally {
-        if (Test-Path -LiteralPath $temporaryFile -PathType Leaf) {
-            Remove-Item -LiteralPath $temporaryFile -Force -ErrorAction SilentlyContinue
+        foreach ($temporaryPath in @($temporaryFile, $replacementBackup)) {
+            if (Test-Path -LiteralPath $temporaryPath -PathType Leaf) {
+                Remove-Item -LiteralPath $temporaryPath -Force -ErrorAction SilentlyContinue
+            }
         }
     }
 }
