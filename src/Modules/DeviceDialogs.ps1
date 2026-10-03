@@ -1,5 +1,50 @@
+function New-TravelersForFlow {
+    param(
+        [string]$Flow,
+        [object[]]$ExistingTravelers = @()
+    )
+
+    $existingByWorkflow = @{}
+    foreach ($traveler in @($ExistingTravelers)) {
+        if ($traveler -and $traveler.Workflow) {
+            $existingByWorkflow[$traveler.Workflow] = $traveler
+        }
+    }
+
+    $travelers = @()
+    foreach ($workflowText in ($Flow -split '->')) {
+        $workflow = $workflowText.Trim()
+        if ([string]::IsNullOrWhiteSpace($workflow)) {
+            continue
+        }
+
+        if ($existingByWorkflow.ContainsKey($workflow)) {
+            $travelers += @($existingByWorkflow[$workflow])
+            continue
+        }
+
+        # New workflow entries start unassigned. Edit Setup must bind the exact
+        # Workflow + Site + Tester + Handler registry before pages can compile.
+        $travelers += @(
+            New-Traveler `
+                -Workflow $workflow `
+                -Site '4 Sites' `
+                -Tester 'CTA8280F' `
+                -Handler 'TK-Handler-Turret' `
+                -BakingRequired $false `
+                -GsRequired $false `
+                -RegistryId ''
+        )
+    }
+
+    @($travelers)
+}
+
 function Show-EditConfig {
     if (-not (Require-Developer)) {
+        return
+    }
+    if (-not $CurrentDevice) {
         return
     }
 
@@ -45,7 +90,7 @@ function Show-EditConfig {
         [void]$dieBox.Items.Add("R$_")
     }
     foreach ($flow in @($State.Flows)) {
-        [void$flowBox.Items.Add($flow)
+        [void]$flowBox.Items.Add($flow)
     }
 
     $dieBox.SelectedItem = $device.Die
@@ -56,9 +101,14 @@ function Show-EditConfig {
     })
 
     $dialog.FindName('Save').Add_Click({
-        $newDie = $dieBox.SelectedItem
-        $newFlow = $flowBox.SelectedItem
-        if (-not $newFlow) {
+        $newDie = [string]$dieBox.SelectedItem
+        $newFlow = [string]$flowBox.SelectedItem
+
+        if ([string]::IsNullOrWhiteSpace($newDie)) {
+            [System.Windows.MessageBox]::Show('Select a Die.', 'E-Traveler') | Out-Null
+            return
+        }
+        if ([string]::IsNullOrWhiteSpace($newFlow)) {
             [System.Windows.MessageBox]::Show('Select a Device Flow.', 'E-Traveler') | Out-Null
             return
         }
@@ -75,38 +125,11 @@ function Show-EditConfig {
             return
         }
 
-        $existingTravelers = @{}
-        foreach ($traveler in @($device.Travelers)) {
-            $existingTravelers[$traveler.Workflow] = $traveler
-        }
-
-        $travelers = @()
-        foreach ($workflowText in ($newFlow -split '->')) {
-            $workflow = $workflowText.Trim()
-            if ($existingTravelers.ContainsKey($workflow)) {
-                $travelers += @($existingTravelers[$workflow])
-                continue
-            }
-
-            $registry = @(
-                $State.Registries | Where-Object { $_.Workflow -eq $workflow }
-            ) | Select-Object -First 1
-
-            if ($registry) {
-                $travelers += @(
-                    New-Traveler -Workflow $workflow -Site $registry.Site -Tester $registry.Tester -Handler $registry.Handler -BakingRequired $false -GsRequired $false -RegistryId $registry.Id
-                )
-            }
-            else {
-                $travelers += @(
-                    New-Traveler -Workflow $workflow -Site '4 Sites' -Tester 'CTA8280F' -Handler 'TK-Handler-Turret' -BakingRequired $false -GsRequired $false -RegistryId ''
-                )
-            }
-        }
-
         $device.Die = $newDie
         $device.Flow = $newFlow
-        $device.Travelers = @($travelers)
+        $device.Travelers = @(
+            New-TravelersForFlow -Flow $newFlow -ExistingTravelers @($device.Travelers)
+        )
 
         Save-State
         $dialog.Close()
@@ -179,7 +202,7 @@ function Show-Register {
             'Enter complete Device Flow. Use -> between workflow travelers.',
             'Add New Flow',
             ''
-        )
+        ).Trim()
 
         if ([string]::IsNullOrWhiteSpace($newFlow)) {
             return
@@ -265,17 +288,25 @@ function Show-Register {
 
     $dialog.FindName('Save').Add_Click({
         $deviceName = $deviceBox.Text.Trim()
+        $selectedDie = [string]$dieBox.SelectedItem
+        $selectedFlow = [string]$flowBox.SelectedItem
+
         if ([string]::IsNullOrWhiteSpace($deviceName)) {
+            [System.Windows.MessageBox]::Show('Device Name is required.', 'E-Traveler') | Out-Null
             return
         }
-        if (-not $flowBox.SelectedItem) {
+        if ([string]::IsNullOrWhiteSpace($selectedDie)) {
+            [System.Windows.MessageBox]::Show('Select a Die.', 'E-Traveler') | Out-Null
+            return
+        }
+        if ([string]::IsNullOrWhiteSpace($selectedFlow)) {
             [System.Windows.MessageBox]::Show('Select a Device Flow.', 'E-Traveler') | Out-Null
             return
         }
 
         $duplicate = @(
             $State.Devices | Where-Object {
-                $_.Device -eq $deviceName -and $_.Die -eq $dieBox.SelectedItem
+                $_.Device -eq $deviceName -and $_.Die -eq $selectedDie
             }
         )
         if ($duplicate.Count -gt 0) {
@@ -283,26 +314,8 @@ function Show-Register {
             return
         }
 
-        $travelers = @()
-        foreach ($workflowText in ($flowBox.SelectedItem -split '->')) {
-            $workflow = $workflowText.Trim()
-            $registry = @(
-                $State.Registries | Where-Object { $_.Workflow -eq $workflow }
-            ) | Select-Object -First 1
-
-            if ($registry) {
-                $travelers += @(
-                    New-Traveler -Workflow $workflow -Site $registry.Site -Tester $registry.Tester -Handler $registry.Handler -BakingRequired $false -GsRequired $false -RegistryId $registry.Id
-                )
-            }
-            else {
-                $travelers += @(
-                    New-Traveler -Workflow $workflow -Site '4 Sites' -Tester 'CTA8280F' -Handler 'TK-Handler-Turret' -BakingRequired $false -GsRequired $false -RegistryId ''
-                )
-            }
-        }
-
-        $newDevice = New-Device -Device $deviceName -Die $dieBox.SelectedItem -Flow $flowBox.SelectedItem -Travelers $travelers
+        $travelers = @(New-TravelersForFlow -Flow $selectedFlow)
+        $newDevice = New-Device -Device $deviceName -Die $selectedDie -Flow $selectedFlow -Travelers $travelers
         $State.Devices += @($newDevice)
         Save-State
 
@@ -419,10 +432,7 @@ function Show-AllDevices {
     $grid = $dialog.FindName('Grid')
     $grid.ItemsSource = @($State.Devices)
 
-    $dialog.FindName('Close').Add_Click({
-        $dialog.Close()
-    })
-    $dialog.FindName('Open').Add_Click({
+    $openSelectedDevice = {
         if (-not $grid.SelectedItem) {
             return
         }
@@ -430,7 +440,13 @@ function Show-AllDevices {
         $script:CurrentDevice = $grid.SelectedItem
         $dialog.Close()
         Refresh-DeviceView
+    }
+
+    $dialog.FindName('Close').Add_Click({
+        $dialog.Close()
     })
+    $dialog.FindName('Open').Add_Click($openSelectedDevice)
+    $grid.Add_MouseDoubleClick($openSelectedDevice)
 
     [void]$dialog.ShowDialog()
 }
