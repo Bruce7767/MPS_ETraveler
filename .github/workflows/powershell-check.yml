@@ -36,3 +36,8 @@ jobs:
           if ($failed) {
               exit 1
           }
+
+      - name: Check core traveler logic
+        shell: powershell
+        run: |
+          & .\tests\logic-check.ps1
