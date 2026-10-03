@@ -146,35 +146,61 @@ function Save-State {
     }
 }
 
+function Restore-StateFromBackup {
+    param([bool]$PreservePrimaryAsCorruptCopy = $false)
+
+    $recoveredState = Import-StateFile -Path $DataBackupFile
+    $corruptFile = $null
+
+    if ($PreservePrimaryAsCorruptCopy -and (Test-Path -LiteralPath $DataFile -PathType Leaf)) {
+        $corruptFile = Join-Path $DataDir (
+            'E_Traveler_WPF_PreRelease.corrupt-{0}.json' -f (Get-Date -Format 'yyyyMMdd-HHmmss')
+        )
+        Move-Item -LiteralPath $DataFile -Destination $corruptFile -Force
+    }
+
+    Copy-Item -LiteralPath $DataBackupFile -Destination $DataFile -Force
+    $script:State = $recoveredState
+
+    $message = if ($corruptFile) {
+        "The primary local data file was damaged. E-Traveler recovered the previous valid backup.`n`nDamaged copy:`n$corruptFile"
+    }
+    else {
+        'The primary local data file was missing. E-Traveler recovered the previous valid backup.'
+    }
+
+    [System.Windows.MessageBox]::Show(
+        $message,
+        'E-Traveler Data Recovery',
+        [System.Windows.MessageBoxButton]::OK,
+        [System.Windows.MessageBoxImage]::Warning
+    ) | Out-Null
+}
+
 if (Test-Path -LiteralPath $DataFile -PathType Leaf) {
     try {
         $script:State = Import-StateFile -Path $DataFile
     }
     catch {
+        $primaryError = $_.Exception.Message
         if (-not (Test-Path -LiteralPath $DataBackupFile -PathType Leaf)) {
-            throw "Local E-Traveler data could not be read. The existing file was not overwritten. $($_.Exception.Message)"
+            throw "Local E-Traveler data could not be read. The existing file was not overwritten. $primaryError"
         }
 
         try {
-            $recoveredState = Import-StateFile -Path $DataBackupFile
-            $corruptFile = Join-Path $DataDir (
-                'E_Traveler_WPF_PreRelease.corrupt-{0}.json' -f (Get-Date -Format 'yyyyMMdd-HHmmss')
-            )
-
-            Move-Item -LiteralPath $DataFile -Destination $corruptFile -Force
-            Copy-Item -LiteralPath $DataBackupFile -Destination $DataFile -Force
-            $script:State = $recoveredState
-
-            [System.Windows.MessageBox]::Show(
-                "The primary local data file was damaged. E-Traveler recovered the previous valid backup.`n`nDamaged copy:`n$corruptFile",
-                'E-Traveler Data Recovery',
-                [System.Windows.MessageBoxButton]::OK,
-                [System.Windows.MessageBoxImage]::Warning
-            ) | Out-Null
+            Restore-StateFromBackup -PreservePrimaryAsCorruptCopy $true
         }
         catch {
-            throw "Both the primary E-Traveler data file and its backup could not be read. No data was overwritten. $($_.Exception.Message)"
+            throw "The primary E-Traveler data file could not be read and backup recovery also failed. No data was intentionally reset. Primary error: $primaryError Backup error: $($_.Exception.Message)"
         }
+    }
+}
+elseif (Test-Path -LiteralPath $DataBackupFile -PathType Leaf) {
+    try {
+        Restore-StateFromBackup
+    }
+    catch {
+        throw "The primary E-Traveler data file is missing and the backup could not be recovered. No empty database was created. $($_.Exception.Message)"
     }
 }
 else {
