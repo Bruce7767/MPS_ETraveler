@@ -7,6 +7,7 @@ $modules = @(
     'AppShell.ps1'
     'Data.ps1'
     'Traveler.ps1'
+    'TravelerRules.ps1'
     'TemplateSetup.ps1'
     'PageEditor.ps1'
     'DeviceDialogs.ps1'
