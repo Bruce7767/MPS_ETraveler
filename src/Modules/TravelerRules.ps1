@@ -31,6 +31,29 @@ function Ensure-SpecialSlotsForTraveler {
     $Registry.Slots = @($slots)
 }
 
+function Pick-Xls {
+    $dialog = New-Object Microsoft.Win32.OpenFileDialog
+    $dialog.Filter = 'Excel 97-2003 Workbook (*.xls)|*.xls'
+    $dialog.DefaultExt = '.xls'
+    $dialog.CheckFileExists = $true
+    $dialog.Multiselect = $false
+    $dialog.Title = 'Select Traveler Page (.xls)'
+
+    if (-not $dialog.ShowDialog($Window)) {
+        return $null
+    }
+
+    if ([System.IO.Path]::GetExtension($dialog.FileName) -ine '.xls') {
+        [System.Windows.MessageBox]::Show(
+            'Traveler pages must use Excel 97-2003 .xls files.',
+            'E-Traveler'
+        ) | Out-Null
+        return $null
+    }
+
+    $dialog.FileName
+}
+
 function Update-LockStyles {
     $maintenanceStyle = if ($Developer) {
         $Window.Resources['PrimaryBtn']
