@@ -29,6 +29,11 @@ try {
     Save-State
     Assert-True -Condition (Test-Path -LiteralPath $DataBackupFile -PathType Leaf) -Message 'A previous valid state backup should be retained.'
 
+    $primaryState = Import-StateFile -Path $DataFile
+    $backupState = Import-StateFile -Path $DataBackupFile
+    Assert-True -Condition (@($primaryState.Flows).Count -eq 1) -Message 'Primary state should contain the latest saved flow.'
+    Assert-True -Condition (@($backupState.Flows).Count -eq 0) -Message 'Backup state should preserve the previous valid state.'
+
     $registry = New-Registry `
         -Id 'REG001' `
         -Workflow 'A' `
