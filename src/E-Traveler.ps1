@@ -8,9 +8,12 @@ $modules = @(
     'Data.ps1'
     'Traveler.ps1'
     'TravelerRules.ps1'
+    'ExcelCompiler.ps1'
     'TemplateSetup.ps1'
+    'TemplateFolder.ps1'
     'PageEditor.ps1'
     'DeviceDialogs.ps1'
+    'DeviceSearch.ps1'
     'Main.ps1'
 )
 
