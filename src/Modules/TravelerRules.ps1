@@ -31,12 +31,68 @@ function Ensure-SpecialSlotsForTraveler {
     $Registry.Slots = @($slots)
 }
 
-function Refresh-TravelerView {
-    if (-not $CurrentDevice -or $TravelerList.SelectedIndex -lt 0) {
+function Update-LockStyles {
+    $maintenanceStyle = if ($Developer) {
+        $Window.Resources['PrimaryBtn']
+    }
+    else {
+        $Window.Resources['LockedBtn']
+    }
+
+    $RegisterBtn.Style = $maintenanceStyle
+    $EditConfigBtn.Style = $maintenanceStyle
+    $EditSetupBtn.Style = $maintenanceStyle
+    $EditPagesBtn.Style = $maintenanceStyle
+    $DeveloperBtn.Content = if ($Developer) { 'Developer Mode  ON' } else { 'Developer Mode' }
+}
+
+function Refresh-DeviceView {
+    $script:CurrentTraveler = $null
+    $TravelerList.Items.Clear()
+
+    if (-not $CurrentDevice) {
+        $DeviceCard.Visibility = 'Collapsed'
+        $TravelerCard.Visibility = 'Collapsed'
         return
     }
 
-    $script:CurrentTraveler = @($CurrentDevice.Travelers)[$TravelerList.SelectedIndex]
+    $DeviceCard.Visibility = 'Visible'
+    $DeviceNameText.Text = $CurrentDevice.Device
+    $DieText.Text = "Die: $($CurrentDevice.Die)"
+    $FlowText.Text = "Device Flow: $($CurrentDevice.Flow)"
+
+    foreach ($traveler in @($CurrentDevice.Travelers)) {
+        if ($traveler -and $traveler.Workflow) {
+            [void]$TravelerList.Items.Add($traveler.Workflow)
+        }
+    }
+
+    if ($TravelerList.Items.Count -gt 0) {
+        $TravelerCard.Visibility = 'Visible'
+        $TravelerList.SelectedIndex = 0
+    }
+    else {
+        $TravelerCard.Visibility = 'Collapsed'
+    }
+}
+
+function Refresh-TravelerView {
+    if (-not $CurrentDevice) {
+        $script:CurrentTraveler = $null
+        return
+    }
+
+    $travelers = @($CurrentDevice.Travelers)
+    $selectedIndex = $TravelerList.SelectedIndex
+    if ($selectedIndex -lt 0 -or $selectedIndex -ge $travelers.Count) {
+        $script:CurrentTraveler = $null
+        return
+    }
+
+    $script:CurrentTraveler = $travelers[$selectedIndex]
+    if (-not $CurrentTraveler) {
+        return
+    }
 
     $WorkflowTitle.Text = $CurrentTraveler.Workflow
     $SiteText.Text = $CurrentTraveler.Site
