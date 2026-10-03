@@ -1,18 +1,18 @@
 # MPS E-Traveler
 
-Offline Windows desktop application for maintaining device traveler configurations and compiling Excel 97-2003 (`.xls`) traveler workbooks.
+Windows desktop utility for maintaining Device/Die traveler configurations and compiling legacy Excel `.xls` traveler workbooks.
 
-## Features
+## What it does
 
-- Register Device + Die configurations
-- Maintain Device Flow definitions
-- Configure Site, Tester, Handler, Baking and Golden Sample settings
-- Link traveler pages directly to external `.xls` files
-- Reorder traveler pages
-- Select template folders with the Windows folder picker
-- Compile final `.xls` travelers through Microsoft Excel
-- View all Die configurations registered under the same Device
-- Developer-mode access control for maintenance functions
+- Registers Device and Die configurations
+- Maintains Device Flow definitions
+- Configures Site, Tester, Handler, Baking and Golden Sample settings
+- Links each traveler page to an external `.xls` source file
+- Reorders traveler pages before compilation
+- Opens template folders with the Windows folder picker
+- Compiles final Excel 97-2003 traveler workbooks through Microsoft Excel
+- Lists all Die configurations registered under the same Device
+- Protects maintenance functions with Developer Mode
 
 ## Requirements
 
@@ -20,19 +20,21 @@ Offline Windows desktop application for maintaining device traveler configuratio
 - Windows PowerShell 5.1 or later
 - Microsoft Excel desktop
 
-## Source layout
+## Project structure
 
-- `src/E-Traveler.ps1` — application entry point
-- `src/Modules/AppShell.ps1` — WPF shell and main layout
-- `src/Modules/Data.ps1` — local state and data model
-- `src/Modules/Traveler.ps1` — traveler rules and Excel compiler
-- `src/Modules/TemplateSetup.ps1` — template-folder and setup dialogs
-- `src/Modules/PageEditor.ps1` — page assignment and ordering
-- `src/Modules/DeviceDialogs.ps1` — Device/Die and Device Flow dialogs
-- `src/Modules/Main.ps1` — application event wiring
+```text
+src/
+├─ E-Traveler.ps1
+└─ Modules/
+   ├─ AppShell.ps1
+   ├─ Data.ps1
+   ├─ Traveler.ps1
+   ├─ TemplateSetup.ps1
+   ├─ PageEditor.ps1
+   ├─ DeviceDialogs.ps1
+   └─ Main.ps1
+```
 
-## Local data
+Runtime data is stored locally. Traveler templates and page files stay outside the application and are referenced by their Windows paths.
 
-Runtime data is stored locally beside the application. Template folders and traveler page files remain external and are referenced by their Windows paths.
-
-The repository does not include production Device, traveler, template-folder or worksheet data.
+Production Device, traveler and worksheet data are not included in this repository.

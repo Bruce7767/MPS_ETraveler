@@ -1,16 +1,91 @@
 function Show-TemplateFolder {
-    if(-not $CurrentTraveler){return};$reg=Get-Registry $CurrentTraveler.RegistryId;if(-not $reg){[System.Windows.MessageBox]::Show('Template Folder is not defined.','E-Traveler')|Out-Null;return}
-    [xml]$x=@'
-<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" Title="Template Folder" Width="820" Height="300" WindowStartupLocation="CenterOwner" Background="#F8FAFC"><StackPanel Margin="24"><TextBlock Name="Head" FontSize="20" FontWeight="Bold"/><TextBlock Text="Folder Path" Margin="0,20,0,6"/><TextBox Name="Path" Height="38" FontSize="14" Padding="8"/><WrapPanel Margin="0,18,0,0"><Button Name="Select" Content="Select Folder Path" Padding="16,9" Margin="0,0,8,0"/><Button Name="Save" Content="Save Folder Path" Padding="16,9" Margin="0,0,8,0"/><Button Name="Open" Content="Open Folder" Padding="16,9" Margin="0,0,8,0"/><Button Name="Close" Content="Close" Padding="16,9"/></WrapPanel></StackPanel></Window>
+    if (-not $CurrentTraveler) {
+        return
+    }
+
+    $registry = Get-Registry -Id $CurrentTraveler.RegistryId
+    if (-not $registry) {
+        [System.Windows.MessageBox]::Show('Template Folder is not defined.', 'E-Traveler') | Out-Null
+        return
+    }
+
+    [xml]$folderXaml = @'
+<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        Title="Template Folder"
+        Width="820" Height="300"
+        WindowStartupLocation="CenterOwner"
+        Background="#F8FAFC">
+  <StackPanel Margin="24">
+    <TextBlock Name="Head" FontSize="20" FontWeight="Bold"/>
+    <TextBlock Text="Folder Path" Margin="0,20,0,6"/>
+    <TextBox Name="Path" Height="38" FontSize="14" Padding="8"/>
+    <WrapPanel Margin="0,18,0,0">
+      <Button Name="Select" Content="Select Folder Path" Padding="16,9" Margin="0,0,8,0"/>
+      <Button Name="Save" Content="Save Folder Path" Padding="16,9" Margin="0,0,8,0"/>
+      <Button Name="Open" Content="Open Folder" Padding="16,9" Margin="0,0,8,0"/>
+      <Button Name="Close" Content="Close" Padding="16,9"/>
+    </WrapPanel>
+  </StackPanel>
+</Window>
 '@
-    $w=Load-Xaml $x;$w.Owner=$Window;$w.FindName('Head').Text="$($reg.Workflow)  ·  $($reg.Site)  ·  $($reg.Tester)  ·  $($reg.Handler)";$path=$w.FindName('Path');$path.Text=$reg.Folder
-    $w.FindName('Select').Add_Click({if(Require-Developer){$p=Pick-Folder $path.Text;if($p){$path.Text=$p}}});$w.FindName('Save').Add_Click({if(Require-Developer){$reg.Folder=$path.Text;Save-State;[System.Windows.MessageBox]::Show('Folder path saved.','E-Traveler')|Out-Null}});$w.FindName('Open').Add_Click({if(Test-Path $path.Text){Start-Process explorer.exe $path.Text}else{[System.Windows.MessageBox]::Show('Folder does not exist.','E-Traveler')|Out-Null}});$w.FindName('Close').Add_Click({$w.Close()});[void]$w.ShowDialog()
+
+    $dialog = Load-Xaml $folderXaml
+    $dialog.Owner = $Window
+    $dialog.FindName('Head').Text = "$($registry.Workflow)  ·  $($registry.Site)  ·  $($registry.Tester)  ·  $($registry.Handler)"
+
+    $pathBox = $dialog.FindName('Path')
+    $pathBox.Text = $registry.Folder
+
+    $dialog.FindName('Select').Add_Click({
+        if (-not (Require-Developer)) {
+            return
+        }
+
+        $selectedPath = Pick-Folder -Initial $pathBox.Text
+        if ($selectedPath) {
+            $pathBox.Text = $selectedPath
+        }
+    })
+
+    $dialog.FindName('Save').Add_Click({
+        if (-not (Require-Developer)) {
+            return
+        }
+
+        $registry.Folder = $pathBox.Text
+        Save-State
+        [System.Windows.MessageBox]::Show('Folder path saved.', 'E-Traveler') | Out-Null
+    })
+
+    $dialog.FindName('Open').Add_Click({
+        if (Test-Path -LiteralPath $pathBox.Text) {
+            Start-Process explorer.exe $pathBox.Text
+            return
+        }
+
+        [System.Windows.MessageBox]::Show('Folder does not exist.', 'E-Traveler') | Out-Null
+    })
+
+    $dialog.FindName('Close').Add_Click({
+        $dialog.Close()
+    })
+
+    [void]$dialog.ShowDialog()
 }
+
 function Show-EditSetup {
-    if(-not (Require-Developer)){return}
-    $t=$CurrentTraveler
-    [xml]$x=@'
-<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" Title="Edit Setup" Width="920" Height="420" WindowStartupLocation="CenterOwner" Background="#F8FAFC">
+    if (-not (Require-Developer)) {
+        return
+    }
+
+    $traveler = $CurrentTraveler
+
+    [xml]$setupXaml = @'
+<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        Title="Edit Setup"
+        Width="920" Height="420"
+        WindowStartupLocation="CenterOwner"
+        Background="#F8FAFC">
   <StackPanel Margin="24">
     <TextBlock Name="Head" FontSize="21" FontWeight="Bold"/>
     <UniformGrid Columns="3" Margin="0,22,0,0">
@@ -27,48 +102,90 @@ function Show-EditSetup {
   </StackPanel>
 </Window>
 '@
-    $w=Load-Xaml $x
-    $w.Owner=$Window
-    $w.FindName('Head').Text="$($CurrentDevice.Device) / $($CurrentDevice.Die)    $($t.Workflow)"
-    $site=$w.FindName('Site');$tester=$w.FindName('Tester');$handler=$w.FindName('Handler');$bake=$w.FindName('Bake');$gs=$w.FindName('GS')
-    @('1 Site','2 Sites','4 Sites','6 Sites','8 Sites')|%{[void]$site.Items.Add($_)}
-    @('ASL1000-XP','CTA8280F','CTA8290DP','EAGLE','STS8200')|%{[void]$tester.Items.Add($_)}
-    @('TK-Handler-Gravity','TK-Handler-Gravity-TriTemp','TK-Handler-PNP','TK-Handler-PNP-TriTemp','TK-Handler-Turret')|%{[void]$handler.Items.Add($_)}
-    @('Not Required','Required')|%{[void]$bake.Items.Add($_);[void]$gs.Items.Add($_)}
-    $site.SelectedItem=$t.Site
-    $tester.SelectedItem=$t.Tester
-    $handler.SelectedItem=$t.Handler
-    $bake.SelectedItem=if($t.BakingRequired){'Required'}else{'Not Required'}
-    $gs.SelectedItem=if($t.GsRequired){'Required'}else{'Not Required'}
-    $w.FindName('Cancel').Add_Click({$w.Close()})
-    $w.FindName('Save').Add_Click({
-        $reg=Find-Registry $t.Workflow $site.SelectedItem $tester.SelectedItem $handler.SelectedItem
-        if(-not $reg){
-            $folder=Pick-Folder
-            if(-not $folder){ return }
-            $id='REG'+('{0:D3}' -f (@($State.Registries).Count+1))
-            $old=Get-Registry $t.RegistryId
-            $slots=@()
-            if($old){
-                foreach($s in @($old.Slots)){
-                    $slots += New-Slot $s.Kind $s.Path $s.RequiredPath $s.NotRequiredPath
-                }
-            } else {
-                $slots=@((New-Slot 'Regular'),(New-Slot 'Regular'),(New-Slot 'Regular'))
+
+    $dialog = Load-Xaml $setupXaml
+    $dialog.Owner = $Window
+    $dialog.FindName('Head').Text = "$($CurrentDevice.Device) / $($CurrentDevice.Die)    $($traveler.Workflow)"
+
+    $siteBox = $dialog.FindName('Site')
+    $testerBox = $dialog.FindName('Tester')
+    $handlerBox = $dialog.FindName('Handler')
+    $bakingBox = $dialog.FindName('Bake')
+    $goldenSampleBox = $dialog.FindName('GS')
+
+    @('1 Site', '2 Sites', '4 Sites', '6 Sites', '8 Sites') | ForEach-Object {
+        [void]$siteBox.Items.Add($_)
+    }
+    @('ASL1000-XP', 'CTA8280F', 'CTA8290DP', 'EAGLE', 'STS8200') | ForEach-Object {
+        [void]$testerBox.Items.Add($_)
+    }
+    @(
+        'TK-Handler-Gravity',
+        'TK-Handler-Gravity-TriTemp',
+        'TK-Handler-PNP',
+        'TK-Handler-PNP-TriTemp',
+        'TK-Handler-Turret'
+    ) | ForEach-Object {
+        [void]$handlerBox.Items.Add($_)
+    }
+    @('Not Required', 'Required') | ForEach-Object {
+        [void]$BakingBox.Items.Add($_)
+        [void]$SampleBox.Items.Add($_)
+    }
+
+    $siteBox.SelectedItem = $Traveler.Site
+    $testerBox.SelectedItem = $Traveler.Tester
+    $handlerBox.SelectedItem = $Traveler.Handler
+    $bakingBox.SelectedItem = if ($Traveler.BakingRequired) { 'Required' } else { 'Not Required' }
+    $sampleBox.SelectedItem = if ($Traveler.GsRequired) { 'Required' } else { 'Not Required' }
+
+    $dialog.FindName('Cancel').Add_Click({
+        $dialog.Close()
+    })
+
+    $dialog.FindName('Save').Add_Click({
+        $registry = Find-Registry -Workflow $Traveler.Workflow -Site $siteBox.SelectedItem -Tester $testerBox.SelectedItem -Handler $handlerBox.SelectedItem
+
+        if (-not $registry) {
+            $folder = Pick-Folder
+            if (-not $folder) {
+                return
             }
-            $reg=New-Registry $id $t.Workflow $site.SelectedItem $tester.SelectedItem $handler.SelectedItem $folder $slots
-            $State.Registries += @($reg)
+
+            $registryId = 'REG' + ('{0:D3}' -f (@($State.Registries).Count + 1))
+            $oldRegistry = Get-Registry -Id $Traveler.RegistryId
+            $slots = @()
+
+            if ($oldRegistry) {
+                foreach ($slot in @($oldRegistry.Slots)) {
+                    $slots += New-Slot -Kind $slot.Kind -Path $slot.Path -Required $slot.RequiredPath -NotRequired $slot.NotRequiredPath
+                }
+            }
+            else {
+                $slots = @(
+                    (New-Slot -Kind 'Regular'),
+                    (New-Slot -Kind 'Regular'),
+                    (New-Slot -Kind 'Regular')
+                )
+            }
+
+            $registry = New-Registry -Id $registryId -Workflow $Traveler.Workflow -Site $siteBox.SelectedItem -Tester $testerBox.SelectedItem -Handler $handlerBox.SelectedItem -Folder $folder -Slots $slots
+
+            $State.Registries += @($registry)
         }
-        $t.Site=$site.SelectedItem
-        $t.Tester=$tester.SelectedItem
-        $t.Handler=$handler.SelectedItem
-        $t.BakingRequired=($bake.SelectedItem -eq 'Required')
-        $t.GsRequired=($gs.SelectedItem -eq 'Required')
-        $t.RegistryId=$reg.Id
-        Ensure-SpecialSlotsForTraveler $t $reg
+
+        $Traveler.Site = $siteBox.SelectedItem
+        $Traveler.Tester = $testerBox.SelectedItem
+        $Traveler.Handler = $handlerBox.SelectedItem
+        $Traveler.BakingRequired = $bakingBox.SelectedItem -eq 'Required'
+        $Traveler.GsRequired = $sampleBox.SelectedItem -eq 'Required'
+        $Traveler.RegistryId = $registry.Id
+
+        Ensure-SpecialSlotsForTraveler -Traveler $Traveler -Registry $registry
         Save-State
-        $w.Close()
+        $dialog.Close()
         Refresh-TravelerView
     })
-    [void]$w.ShowDialog()
+
+    [void]$dialog.ShowDialog()
 }

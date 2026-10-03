@@ -1,11 +1,11 @@
-# Runtime files
-E_Traveler_Data.json
-E_Traveler_Data.dat
+Data/
 Output/
+*.xls
+*.xlsx
 *.log
-
-# Temporary build files
-_build/
-*.obj
-*.lib
-*.pdb
+*.tmp
+*.bak
+.vscode/
+.idea/
+Thumbs.db
+Desktop.ini

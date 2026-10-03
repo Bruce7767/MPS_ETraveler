@@ -1,10 +1,18 @@
-param([string]$Root = (Split-Path -Parent $MyInvocation.MyCommand.Path))
+param(
+    [string]$Root = (Split-Path -Parent $MyInvocation.MyCommand.Path)
+)
 
 $moduleRoot = Join-Path $PSScriptRoot 'Modules'
-. (Join-Path $moduleRoot 'AppShell.ps1')
-. (Join-Path $moduleRoot 'Data.ps1')
-. (Join-Path $moduleRoot 'Traveler.ps1')
-. (Join-Path $moduleRoot 'TemplateSetup.ps1')
-. (Join-Path $moduleRoot 'PageEditor.ps1')
-. (Join-Path $moduleRoot 'DeviceDialogs.ps1')
-. (Join-Path $moduleRoot 'Main.ps1')
+$modules = @(
+    'AppShell.ps1'
+    'Data.ps1'
+    'Traveler.ps1'
+    'TemplateSetup.ps1'
+    'PageEditor.ps1'
+    'DeviceDialogs.ps1'
+    'Main.ps1'
+)
+
+foreach ($module in $modules) {
+    . (Join-Path $moduleRoot $module)
+}

@@ -1,11 +1,10 @@
-
 $ErrorActionPreference = 'Stop'
-$DiagnosticLog = Join-Path $env:TEMP 'E_Traveler_WPF_PreRelease_Error.log'
+$DiagnosticLogPath = Join-Path $env:TEMP 'E_Traveler_Error.log'
 trap {
     try {
-        ($_ | Out-String) | Set-Content -LiteralPath $DiagnosticLog -Encoding UTF8
+        ($_ | Out-String) | Set-Content -LiteralPath $DiagnosticLogPath -Encoding UTF8
         [System.Windows.MessageBox]::Show(
-            "E-Traveler could not start.`n`nDiagnostic log:`n$DiagnosticLog`n`n$($_.Exception.Message)",
+            "E-Traveler could not start.`n`nDiagnostic log:`n$DiagnosticLogPath`n`n$($_.Exception.Message)",
             'E-Traveler Pre-Release',
             'OK',
             'Error'
@@ -67,7 +66,7 @@ Add-Type -AssemblyName Microsoft.VisualBasic
       <Grid Margin="18,22"><Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
         <StackPanel>
           <TextBlock Text="E-TRAVELER" Foreground="White" FontWeight="Bold" FontSize="24"/>
-          <TextBlock Text="PRE-RELEASE · WPF" Foreground="#94A3B8" FontSize="12" Margin="0,4,0,0"/>
+          <TextBlock Text="PRE-RELEASE" Foreground="#94A3B8" FontSize="12" Margin="0,4,0,0"/>
         </StackPanel>
         <Button x:Name="DeveloperBtn" Grid.Row="1" Content="Developer Mode" Margin="0,38,0,0" Style="{StaticResource SecondaryBtn}" MinWidth="0"/>
         <StackPanel Grid.Row="3"><TextBlock Text="OFFLINE" Foreground="#5EEAD4" FontWeight="SemiBold"/><TextBlock Text="Windows Desktop" Foreground="#64748B" FontSize="12"/></StackPanel>
@@ -130,27 +129,45 @@ Add-Type -AssemblyName Microsoft.VisualBasic
 </Window>
 '@
 
-function Load-Xaml([xml]$xaml) {
-    $reader = New-Object System.Xml.XmlNodeReader $xaml
-    return [Windows.Markup.XamlReader]::Load($reader)
+function Load-Xaml {
+    param([xml]$Xaml)
+
+    $reader = New-Object System.Xml.XmlNodeReader $Xaml
+    [Windows.Markup.XamlReader]::Load($reader)
 }
 
-function Find-Control($window, [string]$name) { $window.FindName($name) }
+function Find-Control {
+    param(
+        [System.Windows.Window]$Window,
+        [string]$Name
+    )
+
+    $Window.FindName($Name)
+}
 
 $Window = Load-Xaml $MainXaml
 
-$work = [System.Windows.SystemParameters]::WorkArea
-$targetWidth  = [Math]::Min(1240.0, [Math]::Max(960.0,  $work.Width  * 0.90))
-$targetHeight = [Math]::Min(820.0,  [Math]::Max(620.0,  $work.Height * 0.88))
-$Window.Width = $targetWidth
-$Window.Height = $targetHeight
-$Window.Left = $work.Left + (($work.Width - $targetWidth) / 2)
-$Window.Top = $work.Top + (($work.Height - $targetHeight) / 2)
+$workArea = [System.Windows.SystemParameters]::WorkArea
+$windowWidth = [Math]::Min(1240.0, [Math]::Max(960.0, $workArea.Width * 0.90))
+$windowHeight = [Math]::Min(820.0, [Math]::Max(620.0, $workArea.Height * 0.88))
+
+$Window.Width = $windowWidth
+$Window.Height = $windowHeight
+$Window.Left = $workArea.Left + (($workArea.Width - $windowWidth) / 2)
+$Window.Top = $workArea.Top + (($workArea.Height - $windowHeight) / 2)
 $Window.ResizeMode = [System.Windows.ResizeMode]::CanResizeWithGrip
 $Window.WindowStyle = [System.Windows.WindowStyle]::SingleBorderWindow
 $Window.ShowInTaskbar = $true
 $Window.Topmost = $false
-$names = @('DeveloperBtn','SearchBox','SearchBtn','RefreshBtn','ViewAllBtn','RegisterBtn','DeviceCard','DeviceNameText','DieText','FlowText','OtherDieBtn','EditConfigBtn','TravelerCard','TravelerList','WorkflowTitle','SiteText','TesterText','HandlerText','BakingText','GsText','RegistryText','ViewXlsBtn','OpenFolderBtn','CompileBtn','EditSetupBtn','EditPagesBtn')
-foreach ($n in $names) { Set-Variable -Name $n -Value (Find-Control $Window $n) -Scope Script }
+$controlNames = @(
+    'DeveloperBtn', 'SearchBox', 'SearchBtn', 'RefreshBtn', 'ViewAllBtn', 'RegisterBtn',
+    'DeviceCard', 'DeviceNameText', 'DieText', 'FlowText', 'OtherDieBtn', 'EditConfigBtn',
+    'TravelerCard', 'TravelerList', 'WorkflowTitle', 'SiteText', 'TesterText', 'HandlerText',
+    'BakingText', 'GsText', 'RegistryText', 'ViewXlsBtn', 'OpenFolderBtn', 'CompileBtn',
+    'EditSetupBtn', 'EditPagesBtn'
+)
 
-$DataDir = Join-Path $Root 'Data'
+foreach ($controlName in $controlNames) {
+    $control = Find-Control -Window $Window -Name $controlName
+    Set-Variable -Name $controlName -Value $control -Scope Script
+}
