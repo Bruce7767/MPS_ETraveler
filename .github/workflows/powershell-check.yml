@@ -1,0 +1,38 @@
+name: PowerShell Check
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  syntax:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Check PowerShell syntax
+        shell: powershell
+        run: |
+          $failed = $false
+          Get-ChildItem -Path . -Filter *.ps1 -Recurse | ForEach-Object {
+              $tokens = $null
+              $errors = $null
+              [System.Management.Automation.Language.Parser]::ParseFile(
+                  $_.FullName,
+                  [ref]$tokens,
+                  [ref]$errors
+              ) | Out-Null
+
+              if ($errors.Count -gt 0) {
+                  $failed = $true
+                  Write-Host "Syntax error in $($_.FullName)" -ForegroundColor Red
+                  $errors | ForEach-Object { Write-Host $_.Message -ForegroundColor Red }
+              }
+          }
+
+          if ($failed) {
+              exit 1
+          }

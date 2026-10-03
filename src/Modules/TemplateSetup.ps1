@@ -52,13 +52,23 @@ function Show-TemplateFolder {
             return
         }
 
+        if ([string]::IsNullOrWhiteSpace($pathBox.Text)) {
+            [System.Windows.MessageBox]::Show('Template Folder is required.', 'E-Traveler') | Out-Null
+            return
+        }
+        if (-not (Test-Path -LiteralPath $pathBox.Text -PathType Container)) {
+            [System.Windows.MessageBox]::Show('Template Folder does not exist.', 'E-Traveler') | Out-Null
+            return
+        }
+
         $registry.Folder = $pathBox.Text
         Save-State
         [System.Windows.MessageBox]::Show('Folder path saved.', 'E-Traveler') | Out-Null
+        Refresh-TravelerView
     })
 
     $dialog.FindName('Open').Add_Click({
-        if (Test-Path -LiteralPath $pathBox.Text) {
+        if (Test-Path -LiteralPath $pathBox.Text -PathType Container) {
             Start-Process explorer.exe $pathBox.Text
             return
         }
@@ -75,6 +85,9 @@ function Show-TemplateFolder {
 
 function Show-EditSetup {
     if (-not (Require-Developer)) {
+        return
+    }
+    if (-not $CurrentTraveler) {
         return
     }
 
@@ -129,22 +142,39 @@ function Show-EditSetup {
         [void]$handlerBox.Items.Add($_)
     }
     @('Not Required', 'Required') | ForEach-Object {
-        [void]$BakingBox.Items.Add($_)
-        [void]$SampleBox.Items.Add($_)
+        [void]$bakingBox.Items.Add($_)
+        [void]$goldenSampleBox.Items.Add($_)
     }
 
-    $siteBox.SelectedItem = $Traveler.Site
-    $testerBox.SelectedItem = $Traveler.Tester
-    $handlerBox.SelectedItem = $Traveler.Handler
-    $bakingBox.SelectedItem = if ($Traveler.BakingRequired) { 'Required' } else { 'Not Required' }
-    $sampleBox.SelectedItem = if ($Traveler.GsRequired) { 'Required' } else { 'Not Required' }
+    $siteBox.SelectedItem = $traveler.Site
+    $testerBox.SelectedItem = $traveler.Tester
+    $handlerBox.SelectedItem = $traveler.Handler
+    $bakingBox.SelectedItem = if ($traveler.BakingRequired) { 'Required' } else { 'Not Required' }
+    $goldenSampleBox.SelectedItem = if ($traveler.GsRequired) { 'Required' } else { 'Not Required' }
 
     $dialog.FindName('Cancel').Add_Click({
         $dialog.Close()
     })
 
     $dialog.FindName('Save').Add_Click({
-        $registry = Find-Registry -Workflow $Traveler.Workflow -Site $siteBox.SelectedItem -Tester $testerBox.SelectedItem -Handler $handlerBox.SelectedItem
+        $site = [string]$siteBox.SelectedItem
+        $tester = [string]$testerBox.SelectedItem
+        $handler = [string]$handlerBox.SelectedItem
+
+        if (
+            [string]::IsNullOrWhiteSpace($site) -or
+            [string]::IsNullOrWhiteSpace($tester) -or
+            [string]::IsNullOrWhiteSpace($handler)
+        ) {
+            [System.Windows.MessageBox]::Show('Site, Tester and Handler are required.', 'E-Traveler') | Out-Null
+            return
+        }
+
+        $registry = Find-Registry `
+            -Workflow $traveler.Workflow `
+            -Site $site `
+            -Tester $tester `
+            -Handler $handler
 
         if (-not $registry) {
             $folder = Pick-Folder
@@ -153,35 +183,32 @@ function Show-EditSetup {
             }
 
             $registryId = 'REG' + ('{0:D3}' -f (@($State.Registries).Count + 1))
-            $oldRegistry = Get-Registry -Id $Traveler.RegistryId
-            $slots = @()
+            $slots = @(
+                (New-Slot -Kind 'Regular'),
+                (New-Slot -Kind 'Regular'),
+                (New-Slot -Kind 'Regular')
+            )
 
-            if ($oldRegistry) {
-                foreach ($slot in @($oldRegistry.Slots)) {
-                    $slots += New-Slot -Kind $slot.Kind -Path $slot.Path -Required $slot.RequiredPath -NotRequired $slot.NotRequiredPath
-                }
-            }
-            else {
-                $slots = @(
-                    (New-Slot -Kind 'Regular'),
-                    (New-Slot -Kind 'Regular'),
-                    (New-Slot -Kind 'Regular')
-                )
-            }
-
-            $registry = New-Registry -Id $registryId -Workflow $Traveler.Workflow -Site $siteBox.SelectedItem -Tester $testerBox.SelectedItem -Handler $handlerBox.SelectedItem -Folder $folder -Slots $slots
+            $registry = New-Registry `
+                -Id $registryId `
+                -Workflow $traveler.Workflow `
+                -Site $site `
+                -Tester $tester `
+                -Handler $handler `
+                -Folder $folder `
+                -Slots $slots
 
             $State.Registries += @($registry)
         }
 
-        $Traveler.Site = $siteBox.SelectedItem
-        $Traveler.Tester = $testerBox.SelectedItem
-        $Traveler.Handler = $handlerBox.SelectedItem
-        $Traveler.BakingRequired = $bakingBox.SelectedItem -eq 'Required'
-        $Traveler.GsRequired = $sampleBox.SelectedItem -eq 'Required'
-        $Traveler.RegistryId = $registry.Id
+        $traveler.Site = $site
+        $traveler.Tester = $tester
+        $traveler.Handler = $handler
+        $traveler.BakingRequired = $bakingBox.SelectedItem -eq 'Required'
+        $traveler.GsRequired = $goldenSampleBox.SelectedItem -eq 'Required'
+        $traveler.RegistryId = $registry.Id
 
-        Ensure-SpecialSlotsForTraveler -Traveler $Traveler -Registry $registry
+        Ensure-SpecialSlotsForTraveler -Traveler $traveler -Registry $registry
         Save-State
         $dialog.Close()
         Refresh-TravelerView
