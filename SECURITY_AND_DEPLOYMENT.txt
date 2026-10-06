@@ -1,0 +1,54 @@
+MPS E-Traveler - FINAL RELEASE 3.0.0
+Security and Deployment Guidance
+================================
+
+1. What is hardened in this release
+-----------------------------------
+- Normal engineers receive the compiled SERVER_PACKAGE, not the C# source package.
+- Developer password is stored as a salted PBKDF2-HMAC-SHA256 hash (310,000 iterations), not plaintext.
+- Existing 2.2.x PBKDF2-SHA1 credentials are accepted once and automatically upgraded after a successful login.
+- New / changed Developer passwords require at least 8 characters.
+- Release build disables debug symbols and uses deterministic optimized Release output.
+- Developer-only configuration functions remain password protected.
+- Shared database access remains single-user controlled by an exclusive server lock.
+- Excel macros are not automatically executed during compile/preview.
+
+2. Important limitation
+-----------------------
+This is a client-side .NET desktop application. It is NOT mathematically "uncrackable" and the compiled program can still be reverse engineered by a sufficiently skilled person. Code signing and commercial/professional obfuscation can be added later if required by company IT/security policy.
+
+3. Recommended server permissions
+---------------------------------
+SERVER_PACKAGE\_app
+  Engineers: Read + Execute
+  Admin/Developer: Modify
+
+SERVER_PACKAGE\Data
+  Engineers using the application: Modify
+  (the SQLite database and lock/session files are stored here)
+
+SERVER_PACKAGE\Templates
+  Engineers: Read
+  Template owners/Admin: Modify
+
+SERVER_PACKAGE\Output
+  Engineers: Modify
+
+Source/Admin build package
+  Keep outside general engineer access where possible.
+
+4. Normal deployment
+--------------------
+- Build once on an Admin/Build PC using BUILD_FINAL_SERVER_PACKAGE.cmd.
+- Put/share only SERVER_PACKAGE on the server.
+- Engineers open SERVER_PACKAGE\MPS E-Traveler.cmd.
+- The launcher refreshes the self-contained client into LocalAppData and then runs it locally while using the shared server Data/Templates/Output root.
+
+5. Final page identity rules retained
+------------------------------------
+- SlotId = permanent source identity.
+- RegularNo = permanent visible regular-page identity (Page 3 stays Page 3).
+- Position = current traveler order only.
+- Move Up / Move Down / drag changes Position only.
+- Moving Page 3 never changes its SlotId, RegularNo, or TMP3/source path.
+- HW_INFO / SOCKET_INFO / GS / Baking do not consume regular Page numbers.

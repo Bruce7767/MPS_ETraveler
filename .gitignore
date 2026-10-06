@@ -1,0 +1,28 @@
+# Visual Studio / .NET
+.vs/
+**/bin/
+**/obj/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# Build / deployment output
+SERVER_PACKAGE/
+publish/
+artifacts/
+
+# Runtime data
+Data/
+Templates/
+Output/
+*.db
+*.db-shm
+*.db-wal
+*.log
+
+# OS / tools
+Thumbs.db
+.DS_Store
+.idea/
+.vscode/
